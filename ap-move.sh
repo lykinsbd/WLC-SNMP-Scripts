@@ -23,25 +23,20 @@ PS3="Select a controller: "
 
 READAPLIST(){
 
-clear
-echo ""
-echo "Please enter the list of AP's to be moved:"
-echo "`ls $APLISTPATH`"
-echo "--------------------------------------"
-echo -n "> "
-read APLIST
-
-if [ -f $APLISTPATH$APLIST ]
- then
-  echo ""
-  echo "AP List = \"./ap-lists/$APLIST\" (confirmed)"
- else
-  echo ""
-  echo "AP list = \"./ap-lists/$APLIST\" (does not exist!)"
-  echo "Aborting..."
-  echo ""
- exit
-fi
+	clear
+	printf "\nPlease enter the list of AP's to be moved:\n"
+	printf "`ls $APLISTPATH`\n"
+	printf "--------------------------------------\n> "
+	read APLIST
+	
+	if [ -f $APLISTPATH$APLIST ]
+		then
+	 		printf "\nAP List = \"./ap-lists/$APLIST\" (confirmed)\n"
+		else
+	 		printf "\nAP list = \"./ap-lists/$APLIST\" (does not exist!)\n"
+	 		printf "Aborting...\n\n"
+			exit
+	fi
 
 }
 
@@ -52,35 +47,31 @@ fi
 
 FINDAP(){
 
-echo "--------------------------------------------------"
-echo ""
-echo "====[ Finding AP on Controllers... ]===="
-echo ""
-
-for CONTROLLERS in `cat $CONTROLLERLIST`
-
-do
-	SEARCH=$(snmpwalk $SNMPOPTIONS $CONTROLLERS \
-		bsnAPName | grep $NAME\")
+	printf "--------------------------------------------------\n\n"
+	printf "====[ Finding AP on Controllers... ]====\n\n"
 	
-if [[ $SEARCH = *$NAME* ]]
-	then
-	echo "!!!! $NAME FOUND on Controller $CONTROLLERS !!!!"
-	REGCONTROLLER=$CONTROLLERS
-	RADIOMAC=$(sed -n 's/.*bsnAPName.\(.*\)=.*/\1/p' <<< "$SEARCH")
-	CURCONTROLLER1=$(snmpwalk $SNMPOPTIONS $REGCONTROLLER \
-		bsnAPPrimaryMwarName | grep $RADIOMAC | cut -d\" -f2 )
-	CURCONTROLLER2=$(snmpwalk $SNMPOPTIONS $REGCONTROLLER \
-		bsnAPSecondaryMwarNAme | grep $RADIOMAC | cut -d\" -f2)
-	break
-	else
-	echo "$NAME not found on Controller $CONTROLLERS"
-fi
-
-done
-
-# echo $RADIOMAC
-# echo $REGCONTROLLER
+	for CONTROLLERS in `cat $CONTROLLERLIST`; do
+		SEARCH=$(snmpwalk $SNMPOPTIONS $CONTROLLERS \
+			bsnAPName | grep $NAME\")
+		
+	if [[ $SEARCH = *$NAME* ]]
+		then
+			printf "!!!! $NAME FOUND on Controller $CONTROLLERS !!!!\n"
+			REGCONTROLLER=$CONTROLLERS
+			RADIOMAC=$(sed -n 's/.*bsnAPName.\(.*\)=.*/\1/p' <<< "$SEARCH")
+			CURCONTROLLER1=$(snmpwalk $SNMPOPTIONS $REGCONTROLLER \
+				bsnAPPrimaryMwarName | grep $RADIOMAC | cut -d\" -f2 )
+			CURCONTROLLER2=$(snmpwalk $SNMPOPTIONS $REGCONTROLLER \
+				bsnAPSecondaryMwarNAme | grep $RADIOMAC | cut -d\" -f2)
+			break
+		else
+			printf "$NAME not found on Controller $CONTROLLERS\n"
+	fi
+	
+	done
+	
+	# printf $RADIOMAC\n
+	# printf $REGCONTROLLER\n
 
 }
 
@@ -88,23 +79,18 @@ done
 # # # # VERIFY CHANGES # # # #
 
 VERIFY(){
-echo ""
-echo ""
-echo "=====[ Current AP Information ]====="
-echo "AP Name: $NAME"
-echo "Registered to Controller: $REGCONTROLLER"
-echo "Current Primary Controller: $CURCONTROLLER1"
-echo "Current Secondary: $CURCONTROLLER2"
-echo "AP SNMP Identifier: $RADIOMAC"
-echo ""
-echo "=====[ Configuraiton Changes ]====="
-echo "New Primary Controller: $CONTROLLER1"
-echo "New Secondary Controller: $CONTROLLER2"
-
-echo ""
-echo ""
-echo "Press Cntl-Z to quit in the next 5 seconds if this is not correct!"
-for i in {5..1};do echo -n "$i, " && sleep 1; done
+	printf "\n\n\n=====[ Current AP Information ]=====\n"
+	printf "AP Name: $NAME\n"
+	printf "Registered to Controller: $REGCONTROLLER\n"
+	printf "Current Primary Controller: $CURCONTROLLER1\n"
+	printf "Current Secondary: $CURCONTROLLER2\n"
+	printf "AP SNMP Identifier: $RADIOMAC\n"
+	printf "\n\n=====[ Configuraiton Changes ]=====\n"
+	printf "New Primary Controller: $CONTROLLER1\n"
+	printf "New Secondary Controller: $CONTROLLER2\n"
+	
+	printf "\n\nPress Cntl-Z to quit in the next 5 seconds if this is not correct!\n"
+	for i in {5..1};do printf "$i, " && sleep 1; done
 
 }
 
@@ -112,19 +98,13 @@ for i in {5..1};do echo -n "$i, " && sleep 1; done
 
 IMPLEMENT(){
 
-echo ""
-echo "====[ Implementing changes... ]===="
-echo ""
-echo "====[ $NAME ]===="
-echo "" >> $CONFIGLOG
-echo "====[ $NAME ]====" >> $CONFIGLOG
-echo "" >> $CONFIGLOG
-
-OUTPUT=$(snmpset $SNMPOPTIONS $REGCONTROLLER \
-	bsnAPPrimaryMwarName.$RADIOMAC s $CONTROLLER1 \
-	bsnAPSecondaryMwarName.$RADIOMAC s $CONTROLLER2)
-echo "$OUTPUT" >> $CONFIGLOG
-echo "$OUTPUT"
+	printf "\n\n====[ Implementing changes... ]====\n"
+	printf "\n\n===[ $NAME ]===\n\n" | tee -a $CONFIGLOG
+	
+	OUTPUT=$(snmpset $SNMPOPTIONS $REGCONTROLLER \
+		bsnAPPrimaryMwarName.$RADIOMAC s $CONTROLLER1 \
+		bsnAPSecondaryMwarName.$RADIOMAC s $CONTROLLER2)
+	printf "$OUTPUT\n" | tee -a $CONFIGLOG
 
 }
 
@@ -133,57 +113,42 @@ echo "$OUTPUT"
 
 WAITFORAP(){
 
-
-echo ""
-echo ""
-echo "====[ Waiting for AP to re-register to new Primary Controller... ]===="
-
-while [ "$APCHECK" != "TRUE" ]
-
-do
-
-STATUS=$(snmpwalk $SNMPOPTIONS $CONTROLLER1 \
-	 bsnAPName | grep $NAME\")
-
-if [[ $STATUS = *$NAME* ]]
-then
-	echo ""
-	echo ""
-	echo "!!!! $NAME is now registered to Controller $CONTROLLER1 !!!!"
-	echo ""
-	echo "Now waiting 3 seconds to see if AP Needs to download code..."
-	for i in {3..1};do echo -n "$i, " && sleep 1; done
+	printf "\n\n====[ Waiting for AP to re-register to new Primary Controller... ]====\n"
 	
-	DOWNLOAD=$(snmpwalk $SNMPOPTIONS $CONTROLLER1 \
-		   bsnAPOperationStatus.$RADIOMAC)
-	while [[ $DOWNLOAD != *associated* ]]
-	do
-		echo ""
-		echo ""
-		echo "AP Downloading updated Firmware and will reboot..."
-		echo "This can take several minutes, please Wait..."
-		echo ""
-		for i in {10..1};do echo -n "$i, " && sleep 1; done 
-		DOWNLOAD=$(snmpwalk $SNMPOPTIONS $CONTROLLER1 \
-			   bsnAPOperationStatus.$RADIOMAC)
-
+	while [ "$APCHECK" != "TRUE" ]; do
+	
+		STATUS=$(snmpwalk $SNMPOPTIONS $CONTROLLER1 \
+			bsnAPName | grep $NAME\")
+	
+		if [[ $STATUS = *$NAME* ]]
+			then
+				printf "\n\n!!!! $NAME is now registered to Controller $CONTROLLER1 !!!!\n\n"
+				printf "Now waiting 3 seconds to see if AP Needs to download code...\n"
+				for i in {3..1};do printf "$i, " && sleep 1; done
+				
+				DOWNLOAD=$(snmpwalk $SNMPOPTIONS $CONTROLLER1 \
+					bsnAPOperationStatus.$RADIOMAC)
+				
+				while [[ $DOWNLOAD != *associated* ]]; do
+					printf "\n\nAP Downloading updated Firmware and will reboot...\n"
+					printf "This can take several minutes, please Wait...\n\n"
+					for i in {10..1};do printf "$i, " && sleep 1; done 
+					DOWNLOAD=$(snmpwalk $SNMPOPTIONS $CONTROLLER1 \
+						bsnAPOperationStatus.$RADIOMAC)	
+				done
+			
+				printf "\n\nAP $NAME Ready to go!\n"
+				APCHECK="TRUE"
+	
+			else
+				printf "\n\n$NAME not registered on Controller $CONTROLLER1 yet.\n"
+				printf "Waiting 10 seconds and checking again...\n"
+				APCHECK="FALSE"
+				for i in {10..1};do printf "$i, " && sleep 1; done 
+		fi
+	
 	done
 
-		echo ""
-		echo ""
-		echo "AP $NAME Ready to go!"
-
-		APCHECK="TRUE"
-else
-	echo ""
-	echo ""
-	echo "$NAME not registered on Controller $CONTROLLER1 yet"
-	echo "Waiting 10 seconds and checking again..."
-	APCHECK="FALSE"
-	for i in {10..1};do echo -n "$i, " && sleep 1; done 
-fi
-
-done
 }
 
 
@@ -192,13 +157,8 @@ done
 # # # # # # # # # # # # # # # # # # # # # # # 
 
 clear
-echo "=====[ AP Moving Script ]====="
-echo ""
-echo ""
-echo "This script is meant to be used to move many Access Points"
-echo "between two controllers."
-echo ""
-echo ""
+printf "=====[ AP Moving Script ]=====\n\n\n"
+printf "This script is meant to be used to move many\nAccess Points between two controllers.\n\n\n"
 
 
 # # # # Read AP List with READAPLIST Function # # # # 
@@ -209,73 +169,44 @@ READAPLIST
 # # # # GATHER AP INFORMATION # # # #
 
 
-echo ""
-echo ""
-# echo "Please enter the Primary Controller you would like these AP's to register to:"
-# echo -n "> "
-# read CONTROLLER1
+printf "\n\nPlease select the Primary Controller you would like these APs to register to:\n"
+select CONTROLLER1 in `cat $CONTROLLERLIST`; do
+	printf "You have selected $CONTROLLER1\n"
+	break
+done
 # CONTROLLER1="AMH5508-HLT-1"
 
-echo "Please select the Primary Controller you would like these APs to register to:"
-select CONTROLLER1 in `cat $CONTROLLERLIST`
-do
-	echo "You have selected $CONTROLLER1"
+printf "\n\nPlease select the Secondary Controller you would like these APs to register to:\n"
+select CONTROLLER2 in `cat $CONTROLLERLIST`; do
+	printf "You have selected $CONTROLLER2\n"
 	break
 done
-
-
-echo ""
-echo ""
-# echo "Please enter the Secondary Controller you would like these AP's to register to:"
-# echo -n "> "
-# read CONTROLLER2
 # CONTROLLER2="AMH5508-HLT-2"
-
-echo "Please select the Secondary Controller you would like these APs to register to:"
-select CONTROLLER2 in `cat $CONTROLLERLIST`
-do
-	echo "You have selected $CONTROLLER2"
-	break
-done
-
 
 # # # # Execute # # # #
 
-for NAME in `cat $APLISTPATH$APLIST`
-
-do
-
-
-
-# # # # FIND AP WITH FIND FUNCTION # # # #
-
-FINDAP
-
-
-# # # # VERIFY INFORMATION WITH VERIFY FUNCTION # # # #
-
-
-VERIFY
-
-
-# # # # IMPLEMENT CHANGES WITH IMPLEMENT FUNCTION # # # #
-
-
-IMPLEMENT
-
-
-# # # # WAIT FOR AP TO REGISTER TO NEW CONTROLLER # # # #
-
-APCHECK="FALSE"
-
-WAITFORAP
-
+for NAME in `cat $APLISTPATH$APLIST`; do
+	
+	# # # # FIND AP WITH FIND FUNCTION # # # #
+	FINDAP
+	
+	
+	# # # # VERIFY INFORMATION WITH VERIFY FUNCTION # # # #
+	VERIFY
+	
+	
+	# # # # IMPLEMENT CHANGES WITH IMPLEMENT FUNCTION # # # #
+	IMPLEMENT
+	
+	
+	# # # # WAIT FOR AP TO REGISTER TO NEW CONTROLLER # # # #
+	APCHECK="FALSE"
+	
+	WAITFORAP
 
 done
 
-echo ""
-echo "====[ ALL APs have been migrated ]===="
-echo "====[ EXITING! ]===="
+printf "\n====[ ALL APs have been migrated ]====\n====[ EXITING! ]====\n"
 
 exit
 
