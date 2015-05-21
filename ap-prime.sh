@@ -163,7 +163,7 @@ printf "\n\nPlease enter the three letter SITE CODE as you would like it to appe
 read SITE
 # SITE="AMH"
 
-## SINCE WE ONLY HAVE 2600'S, COMMENTING OUT THIS SECTION AND MANUALLY ASSIGNING VARABLE ##
+## SINCE WE ONLY HAVE 2600'S, COMMENTING OUT THIS SECTION AND MANUALLY ASSIGNING VARIABLE ##
 # printf "\n\nPlease enter the Model of these APs as you would like it to appear in the AP Name:\n> "
 # read MODEL
 MODEL="2600"
